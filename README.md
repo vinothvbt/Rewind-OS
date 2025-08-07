@@ -2,7 +2,7 @@
 
 Rewind OS is a next-generation Linux-based operating system designed for complete time manipulation of your system. Inspired by the concepts of version control (like Git) and powered by the robustness of NixOS, Rewind OS enables you to travel back and forth through time — capturing, auditing, and restoring system states as easily as browsing a video timeline.
 
-**Current Status**: Phase 2 Implementation - Deep NixOS integration and improved user experience
+**Current Status**: Phase 3 Implementation - Security, Audit, and Investigation Tools
 
 ---
 
@@ -60,12 +60,13 @@ rewind-os/
 │   ├── cli.py             # Command-line interface
 │   └── timeline.py        # Timeline operations
 ├── scripts/               # System integration scripts
-│   └── hook-xfce-reload.sh # XFCE reload script
+│   ├── hook-xfce-reload.sh # XFCE reload script
+│   └── security-tools.sh  # Security tools and monitoring (Phase 3)
 ├── nix/                   # NixOS configuration
-│   ├── rewind.nix         # Main NixOS module
+│   ├── rewind.nix         # Main NixOS module with security features
 │   └── example.nix        # Example configuration
 ├── README.md              # This file
-└── PHASES.md              # Development roadmap
+└── PHASES_Version5.md     # Development roadmap
 ```
 
 ---
@@ -196,6 +197,45 @@ python3 -m rewind.cli info
 python3 -m rewind.cli info snap_1234567890
 ```
 
+### Security Tools (Phase 3)
+
+**Show security status**:
+```bash
+python3 -m rewind.cli security --status
+```
+
+**Run security scan with snapshots**:
+```bash
+python3 -m rewind.cli security --scan
+```
+
+**Show security audit trail**:
+```bash
+python3 -m rewind.cli security --audit
+```
+
+**Generate security report**:
+```bash
+python3 -m rewind.cli security --report
+```
+
+**Advanced security tools**:
+```bash
+# Initialize security infrastructure
+./scripts/security-tools.sh init
+
+# Run complete security monitoring
+./scripts/security-tools.sh monitor
+
+# Generate comprehensive security report
+./scripts/security-tools.sh report
+
+# Run specific security checks
+./scripts/security-tools.sh integrity
+./scripts/security-tools.sh network
+./scripts/security-tools.sh forensics
+```
+
 ### Advanced Operations
 
 **Create branch and switch to it**:
@@ -313,6 +353,36 @@ services.rewind-os = {
     port = 8080;                     # Web interface port
     bindAddress = "127.0.0.1";       # Bind address
   };
+  
+  # Phase 3: Security, Audit, and Investigation Tools (NEW)
+  security = {
+    enable = true;                   # Enable security features
+    
+    # Security audit tools configuration
+    auditTools = {
+      enable = true;                 # Enable security audit tools
+      systemIntegrity = true;        # System integrity monitoring tools
+      logAnalysis = true;            # Log analysis and monitoring tools
+      forensics = false;             # Forensics and investigation tools
+    };
+    
+    # System hardening configuration
+    hardening = {
+      enable = true;                 # Enable system hardening
+      firewall = true;               # Enhanced firewall configuration
+      kernelHardening = true;        # Kernel security hardening
+      userspace = true;              # Userspace security hardening
+      networkSecurity = true;        # Network security hardening
+    };
+    
+    # Security monitoring and alerting
+    monitoring = {
+      enable = true;                 # Enable security monitoring
+      realTimeAlerts = false;        # Real-time security alerts
+      logRetention = 90;             # Security log retention (days)
+      automaticSnapshots = true;     # Create snapshots on security events
+    };
+  };
 };
 ```
 
@@ -342,7 +412,18 @@ services.rewind-os = {
 - [x] Improved documentation and troubleshooting guides
 - [x] End-to-end testing capabilities
 
-### Coming Soon (Phase 3):
+### Phase 3: 🚧 In Progress
+- [x] Security tools integration framework
+- [x] Basic system hardening modules
+- [x] Security CLI commands and operations
+- [x] Security audit and monitoring infrastructure
+- [x] Initial forensics and investigation tools
+- [ ] Complete security tool configuration
+- [ ] Advanced hardening features
+- [ ] Real-time security monitoring
+- [ ] Full forensics toolkit integration
+
+### Coming Soon (Phase 4):
 - [ ] Actual filesystem snapshot backends (Btrfs/ZFS)
 - [ ] Web-based timeline GUI
 - [ ] Enhanced timeline management

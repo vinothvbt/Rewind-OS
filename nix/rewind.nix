@@ -252,6 +252,83 @@ in {
         description = "Bind address for web interface";
       };
     };
+    
+    # Phase 3: Security, Audit, and Investigation Tools
+    security = {
+      enable = mkEnableOption "Security, audit, and investigation tools";
+      
+      auditTools = {
+        enable = mkEnableOption "Security audit tools integration";
+        
+        systemIntegrity = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Enable system integrity monitoring tools";
+        };
+        
+        logAnalysis = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Enable log analysis and monitoring tools";
+        };
+        
+        forensics = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable forensics and investigation tools";
+        };
+      };
+      
+      hardening = {
+        enable = mkEnableOption "System hardening configuration";
+        
+        firewall = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Enable enhanced firewall configuration";
+        };
+        
+        kernelHardening = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Enable kernel security hardening";
+        };
+        
+        userspace = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Enable userspace security hardening";
+        };
+        
+        networkSecurity = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Enable network security hardening";
+        };
+      };
+      
+      monitoring = {
+        enable = mkEnableOption "Security monitoring and alerting";
+        
+        realTimeAlerts = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable real-time security alerts";
+        };
+        
+        logRetention = mkOption {
+          type = types.int;
+          default = 90;
+          description = "Number of days to retain security logs";
+        };
+        
+        automaticSnapshots = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Create automatic snapshots on security events";
+        };
+      };
+    };
   };
 
   config = mkIf cfg.enable {
@@ -275,6 +352,10 @@ in {
       "d ${cfg.configDir}/branches 0755 rewind-os rewind-os -"
       "d ${cfg.configDir}/stashes 0755 rewind-os rewind-os -"
       "d ${cfg.configDir}/backups 0755 rewind-os rewind-os -"
+    ] ++ lib.optionals cfg.security.enable [
+      "d ${cfg.configDir}/security-logs 0755 rewind-os rewind-os -"
+      "d ${cfg.configDir}/security-reports 0755 rewind-os rewind-os -"
+      "d ${cfg.configDir}/audit-trails 0755 rewind-os rewind-os -"
     ];
     
     # Auto-snapshot service
@@ -441,5 +522,214 @@ in {
     
     # Firewall rule for web interface
     networking.firewall.allowedTCPPorts = mkIf cfg.webInterface.enable [ cfg.webInterface.port ];
+    
+    # Phase 3: Security, Audit, and Investigation Tools Configuration
+    
+    # Security audit tools packages
+    environment.systemPackages = mkIf cfg.security.enable (with pkgs; [
+      # System integrity and monitoring tools
+      ] ++ lib.optionals cfg.security.auditTools.systemIntegrity [
+        aide                    # Advanced Intrusion Detection Environment
+        chkrootkit             # Rootkit detection
+        rkhunter               # Rootkit Hunter
+        lynis                  # Security auditing tool
+        clamav                 # Antivirus scanner
+        
+      ] ++ lib.optionals cfg.security.auditTools.logAnalysis [
+        logwatch               # Log analysis and reporting
+        fail2ban               # Intrusion prevention system
+        rsyslog                # Enhanced syslog
+        
+      ] ++ lib.optionals cfg.security.auditTools.forensics [
+        sleuthkit              # Digital forensics toolkit
+        autopsy                # Digital forensics platform
+        volatility3            # Memory forensics framework
+        binwalk                # Binary analysis tool
+    ]);
+    
+    # Security hardening configuration
+    boot.kernelParams = mkIf (cfg.security.enable && cfg.security.hardening.kernelHardening) [
+      # Kernel hardening parameters
+      "slab_nomerge"           # Prevent slab merging
+      "slub_debug=FZP"         # Enable SLUB debugging
+      "page_poison=1"          # Enable page poisoning
+      "vsyscall=none"          # Disable vsyscalls
+      "debugfs=off"            # Disable debugfs
+      "oops=panic"             # Panic on oops
+      "module.sig_enforce=1"   # Enforce module signatures
+    ];
+    
+    # Enhanced firewall configuration
+    networking.firewall = mkIf (cfg.security.enable && cfg.security.hardening.firewall) {
+      enable = true;
+      allowPing = false;
+      logReversePathDrops = true;
+      logRefusedConnections = true;
+      logRefusedPackets = false;
+      logRefusedUnicastsOnly = false;
+    };
+    
+    # System hardening via sysctl
+    boot.kernel.sysctl = mkIf (cfg.security.enable && cfg.security.hardening.kernelHardening) {
+      # Network security
+      "net.ipv4.ip_forward" = 0;
+      "net.ipv4.conf.all.accept_redirects" = 0;
+      "net.ipv4.conf.default.accept_redirects" = 0;
+      "net.ipv4.conf.all.secure_redirects" = 0;
+      "net.ipv4.conf.default.secure_redirects" = 0;
+      "net.ipv4.conf.all.send_redirects" = 0;
+      "net.ipv4.conf.default.send_redirects" = 0;
+      "net.ipv4.conf.all.accept_source_route" = 0;
+      "net.ipv4.conf.default.accept_source_route" = 0;
+      "net.ipv4.conf.all.log_martians" = 1;
+      "net.ipv4.conf.default.log_martians" = 1;
+      "net.ipv4.icmp_echo_ignore_broadcasts" = 1;
+      "net.ipv4.icmp_ignore_bogus_error_responses" = 1;
+      "net.ipv4.tcp_syncookies" = 1;
+      
+      # Memory protection
+      "kernel.dmesg_restrict" = 1;
+      "kernel.kptr_restrict" = 2;
+      "kernel.yama.ptrace_scope" = 2;
+      "vm.mmap_min_addr" = 65536;
+      
+      # File system security
+      "fs.protected_hardlinks" = 1;
+      "fs.protected_symlinks" = 1;
+      "fs.suid_dumpable" = 0;
+    };
+    
+    # Security monitoring services
+    systemd.services.rewind-security-monitor = mkIf (cfg.security.enable && cfg.security.monitoring.enable) {
+      description = "Rewind-OS security monitoring service";
+      serviceConfig = {
+        Type = "oneshot";
+        User = "rewind-os";
+        Group = "rewind-os";
+        Environment = "REWIND_CONFIG_DIR=${cfg.configDir}";
+        ExecStart = pkgs.writeShellScript "security-monitor" ''
+          # Security monitoring script
+          echo "Running security monitoring checks..."
+          
+          # Check for security events and create snapshots if needed
+          if [ "${toString cfg.security.monitoring.automaticSnapshots}" = "1" ]; then
+            # Create security event snapshot
+            ${rewindPackage}/bin/rewind snapshot "Security check ($(date))"
+          fi
+          
+          # Log security status
+          mkdir -p ${cfg.configDir}/security-logs
+          echo "$(date): Security monitoring completed" >> ${cfg.configDir}/security-logs/security.log
+          
+          # TODO: Implement actual security monitoring logic
+          # - Check system integrity
+          # - Analyze logs for suspicious activity
+          # - Monitor file system changes
+          # - Check for unauthorized access attempts
+        '';
+        WorkingDirectory = cfg.configDir;
+      };
+    };
+    
+    # Security monitoring timer
+    systemd.timers.rewind-security-monitor = mkIf (cfg.security.enable && cfg.security.monitoring.enable) {
+      description = "Timer for Rewind-OS security monitoring";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnCalendar = "hourly";
+        Persistent = true;
+      };
+    };
+    
+    # Security log rotation service
+    systemd.services.rewind-security-log-cleanup = mkIf (cfg.security.enable && cfg.security.monitoring.enable) {
+      description = "Cleanup old Rewind-OS security logs";
+      serviceConfig = {
+        Type = "oneshot";
+        User = "rewind-os";
+        Group = "rewind-os";
+        Environment = "REWIND_CONFIG_DIR=${cfg.configDir}";
+        ExecStart = pkgs.writeShellScript "security-log-cleanup" ''
+          # Clean up security logs older than retention period
+          find ${cfg.configDir}/security-logs -name "*.log" -mtime +${toString cfg.security.monitoring.logRetention} -delete || true
+          echo "$(date): Security log cleanup completed" >> ${cfg.configDir}/security-logs/cleanup.log
+        '';
+        WorkingDirectory = cfg.configDir;
+      };
+    };
+    
+    # Security log cleanup timer
+    systemd.timers.rewind-security-log-cleanup = mkIf (cfg.security.enable && cfg.security.monitoring.enable) {
+      description = "Timer for security log cleanup";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnCalendar = "daily";
+        Persistent = true;
+      };
+    };
+    
+    # Enhanced polkit rules for security tools
+    security.polkit.extraConfig = mkIf cfg.security.enable ''
+      // Allow rewind-os user to run security monitoring tools
+      polkit.addRule(function(action, subject) {
+          if (action.id.indexOf("org.freedesktop.systemd1.manage-units") == 0 &&
+              action.lookup("unit").indexOf("rewind-security") == 0 &&
+              subject.user == "rewind-os") {
+              return polkit.Result.YES;
+          }
+      });
+      
+      // Allow security audit tools access
+      polkit.addRule(function(action, subject) {
+          if (action.id == "org.freedesktop.systemd1.start-unit" &&
+              subject.user == "rewind-os" &&
+              (action.lookup("unit") == "rewind-security-monitor.service" ||
+               action.lookup("unit") == "rewind-security-log-cleanup.service")) {
+              return polkit.Result.YES;
+          }
+      });
+    '';
+    
+    # Fail2ban configuration for intrusion prevention
+    services.fail2ban = mkIf (cfg.security.enable && cfg.security.auditTools.logAnalysis) {
+      enable = true;
+      maxretry = 3;
+      bantime = "1h";
+      
+      # Create custom jail for Rewind-OS security events
+      jails.rewind-security = ''
+        enabled = true
+        filter = rewind-security
+        logpath = ${cfg.configDir}/security-logs/security.log
+        bantime = 3600
+        findtime = 600
+        maxretry = 5
+      '';
+    };
+    
+    # Rsyslog configuration for enhanced logging
+    services.rsyslog = mkIf (cfg.security.enable && cfg.security.auditTools.logAnalysis) {
+      enable = true;
+      extraConfig = ''
+        # Forward security events to Rewind-OS security log
+        if $programname startswith 'rewind' then {
+          action(type="omfile" file="${cfg.configDir}/security-logs/rewind-system.log")
+          stop
+        }
+        
+        # Log authentication events
+        auth,authpriv.*                 ${cfg.configDir}/security-logs/auth.log
+        
+        # Log kernel messages
+        kern.*                          ${cfg.configDir}/security-logs/kernel.log
+      '';
+    };
+    
+    # ClamAV antivirus configuration
+    services.clamav = mkIf (cfg.security.enable && cfg.security.auditTools.systemIntegrity) {
+      daemon.enable = true;
+      updater.enable = true;
+      updater.frequency = 12; # Update twice daily
+    };
   };
 }
