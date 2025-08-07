@@ -2,39 +2,23 @@
 
 Rewind OS is a next-generation Linux-based operating system designed for complete time manipulation of your system. Inspired by the concepts of version control (like Git) and powered by the robustness of NixOS, Rewind OS enables you to travel back and forth through time — capturing, auditing, and restoring system states as easily as browsing a video timeline.
 
+**Current Status**: Phase 1 Implementation - Foundational CLI and NixOS integration
+
 ---
 
 ## 🔥 Key Features
 
 ### 🔁 Time Travel (Back & Forth)
 
-* Instantly rewind to any system state with second-level precision.
+* Instantly rewind to any system state with timeline precision.
 * Move forward in time if a new branch is restored from an old state.
 * Inspired by Marvel's Time Stone — but in real Linux.
 
 ### 🧠 Intelligent Snapshot System
 
-* Powered by Btrfs/ZFS with delta compression.
+* Timeline-based snapshot management with git-like branching.
 * Snapshots taken automatically based on user actions, updates, or on demand.
-* Each snapshot is hashed (SHA-256) and linked to a timeline.
-
-### 📼 Video-based GUI Rollback
-
-* See the system as it was at each point in time.
-* Click on any second of the timeline video to restore that exact state.
-* Interactive branch map allows navigating between forks of system history.
-
-### 🔐 Security & Privacy First
-
-* Selective exclusions for private activity (e.g., incognito sessions, media viewing).
-* Encrypted snapshots with biometric/pin unlock.
-* Auditable logs for trusted rollback.
-
-### 📦 NixOS-Powered Configuration Engine
-
-* Declarative, reproducible system config using Nix.
-* Changes in GUI generate Nix code under-the-hood.
-* No need to learn Nix — the system learns your changes.
+* Each snapshot is tracked and linked to a timeline branch.
 
 ### 🧬 Git-Like Branching Engine
 
@@ -42,85 +26,266 @@ Rewind OS is a next-generation Linux-based operating system designed for complet
 * Switch between system states like switching Git branches.
 * Merge branches or discard experiments without fear.
 
+### 📦 NixOS-Powered Configuration Engine
+
+* Declarative, reproducible system config using Nix.
+* Integrated with NixOS rebuild process.
+* Automatic snapshots before system changes.
+
+### 🔐 Desktop Integration
+
+* XFCE desktop environment integration.
+* Automatic desktop reload after state changes.
+* Configuration backup and restore.
+
 ---
 
 ## 📁 Project Structure
 
 ```
 rewind-os/
-├── gui/                  # Rewind Timeline GUI
-├── timestone/            # CLI snapshot + rollback engine
-├── system-config-gen/    # Nix config generator from GUI actions
-├── branch-manager/       # Git-like branch engine
-├── recorder/             # Background video + state recorder
-└── iso/                  # ISO build pipeline
+├── rewind/                 # Core Python package
+│   ├── __init__.py        # Package initialization
+│   ├── cli.py             # Command-line interface
+│   └── timeline.py        # Timeline operations
+├── scripts/               # System integration scripts
+│   └── hook-xfce-reload.sh # XFCE reload script
+├── nix/                   # NixOS configuration
+│   ├── rewind.nix         # Main NixOS module
+│   └── example.nix        # Example configuration
+├── README.md              # This file
+└── PHASES.md              # Development roadmap
 ```
 
 ---
 
-## 💻 Installation & Build (Dev Preview)
+## 💻 Installation & Setup
 
 ### Prerequisites:
 
-* Linux distro (NixOS recommended)
-* Python 3.11+
-* Btrfs or ZFS enabled
-* Git, systemd
+* NixOS system (recommended)
+* Python 3.8+ 
+* Git
+* XFCE (optional, for desktop integration)
 
-### Step 1: Install Nix
+### Quick Start
 
-```bash
-curl -L https://nixos.org/nix/install | sh
-```
+1. **Clone Repository**:
+   ```bash
+   git clone https://github.com/vinothvbt/Rewind-OS.git
+   cd Rewind-OS
+   ```
 
-### Step 2: Clone Repo
+2. **Test CLI Directly** (Development):
+   ```bash
+   # Initialize timeline
+   python3 -m rewind.cli list
+   
+   # Create a snapshot
+   python3 -m rewind.cli snapshot "Initial setup"
+   
+   # List all branches
+   python3 -m rewind.cli list
+   ```
 
-```bash
-git clone https://github.com/rewind-os/rewind-os.git
-cd rewind-os
-```
+3. **NixOS Integration** (Production):
+   ```nix
+   # Add to your /etc/nixos/configuration.nix
+   imports = [ ./path/to/rewind-os/nix/rewind.nix ];
+   
+   services.rewind-os = {
+     enable = true;
+     autoSnapshot.enable = true;
+     xfce.enable = true;  # If using XFCE
+   };
+   ```
 
-### Step 3: Launch Time Stone CLI
-
-```bash
-cd timestone
-sudo python3 main.py --init
-```
-
-### Step 4: Launch GUI (Experimental)
-
-```bash
-cd gui
-npm install && npm start
-```
+4. **Rebuild NixOS**:
+   ```bash
+   sudo nixos-rebuild switch
+   ```
 
 ---
 
 ## 🔧 Usage
 
-### Create Snapshot:
+### Basic Timeline Operations
 
+**Create a snapshot**:
 ```bash
-rewindctl snapshot "Installed VSCode"
+python3 -m rewind.cli snapshot "Installed new packages"
 ```
 
-### List Snapshots:
-
+**List all branches**:
 ```bash
-rewindctl list
+python3 -m rewind.cli list
 ```
 
-### Rewind to Snapshot:
-
+**List snapshots in current branch**:
 ```bash
-rewindctl rewind <snapshot-id>
+python3 -m rewind.cli list --snapshots
 ```
 
-### Launch Video Rollback:
+**Create a new branch**:
+```bash
+python3 -m rewind.cli branch experimental "Testing new configuration"
+```
+
+**Switch to a branch**:
+```bash
+python3 -m rewind.cli switch experimental
+```
+
+**Restore to a snapshot**:
+```bash
+python3 -m rewind.cli restore snap_1234567890
+```
+
+### Advanced Operations
+
+**Create branch and switch to it**:
+```bash
+python3 -m rewind.cli branch testing "New feature testing" --switch
+```
+
+**List snapshots from specific branch**:
+```bash
+python3 -m rewind.cli list --snapshots --branch main
+```
+
+**View help for any command**:
+```bash
+python3 -m rewind.cli --help
+python3 -m rewind.cli snapshot --help
+```
+
+### XFCE Integration
+
+**Manual desktop reload**:
+```bash
+./scripts/hook-xfce-reload.sh full
+```
+
+**Lightweight refresh**:
+```bash
+./scripts/hook-xfce-reload.sh light
+```
+
+**Backup XFCE configuration**:
+```bash
+./scripts/hook-xfce-reload.sh backup
+```
+
+---
+
+## ⚙️ Configuration
+
+### NixOS Module Options
+
+```nix
+services.rewind-os = {
+  enable = true;
+  configDir = "/var/lib/rewind-os";  # Storage location
+  
+  autoSnapshot = {
+    enable = true;
+    interval = "hourly";             # Automatic snapshot frequency
+    beforeRebuild = true;            # Snapshot before nixos-rebuild
+  };
+  
+  xfce = {
+    enable = true;                   # XFCE integration
+    reloadOnRestore = true;          # Auto-reload after restore
+  };
+  
+  storage = {
+    backend = "simple";              # Storage backend type
+    retentionDays = 30;              # Snapshot retention period
+  };
+};
+```
+
+### Environment Variables
+
+- `REWIND_CONFIG_DIR`: Override default config directory (`~/.rewind`)
+
+---
+
+## 🧪 Development Status
+
+### Phase 1: ✅ Complete
+- [x] Core CLI functionality
+- [x] Timeline operations (list, branch, switch, restore)
+- [x] NixOS module integration
+- [x] XFCE desktop hooks
+- [x] Basic documentation
+
+### Coming Soon (Phase 2):
+- [ ] Actual filesystem snapshot backends (Btrfs/ZFS)
+- [ ] Enhanced timeline management
+- [ ] Automated testing suite
+- [ ] Performance optimizations
+
+See [PHASES.md](PHASES.md) for complete development roadmap.
+
+---
+
+## 🛠️ Development
+
+### Running Tests
 
 ```bash
-rewind-gui
+# Test CLI operations
+python3 -m rewind.cli list
+python3 -m rewind.cli snapshot "Test snapshot"
+python3 -m rewind.cli list --snapshots
 ```
+
+### Project Structure Overview
+
+- **`rewind/`**: Core Python package with CLI and timeline logic
+- **`scripts/`**: System integration scripts
+- **`nix/`**: NixOS configuration and examples
+- **Timeline Data**: Stored in `~/.rewind/` (development) or `/var/lib/rewind-os/` (production)
+
+### Contributing
+
+1. Test CLI functionality
+2. Report issues and bugs
+3. Improve documentation
+4. Add support for other desktop environments
+5. Optimize performance
+
+---
+
+## ⚠️ Disclaimer
+
+Rewind OS is currently in Phase 1 development (foundational structure). The current implementation provides a working CLI for timeline management but does not yet perform actual system-level snapshots. Use in development environments for testing the interface and workflow.
+
+---
+
+## 🧙‍♂️ Future Goals
+
+* Support for actual filesystem snapshots (Btrfs/ZFS)
+* Web-based timeline GUI with visual interface
+* Support for all major Linux distros (not just NixOS)
+* Remote snapshot sync across machines
+* AI-predicted rollback suggestions
+* Complete ISO distribution
+
+---
+
+## 🧑‍💻 Lead Developer
+
+**Vinoth** — Designer, Developer, Time Lord (≧▽≦)
+
+**Assignee for Future Development**: @copilot - For automation and continuous improvements
+
+---
+
+## 📜 License
+
+MIT License. Do whatever you want — but don't build a TVA clone.
 
 ---
 
