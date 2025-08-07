@@ -1,0 +1,56 @@
+# Fail2Ban Configuration for Rewind-OS
+[DEFAULT]
+# Ban IPs for 1 hour by default
+bantime = 3600
+
+# Find attempts over 10 minutes
+findtime = 600
+
+# Ban after 5 attempts
+maxretry = 5
+
+# Destination email for alerts
+destemail = root@localhost
+sendername = Fail2Ban-Rewind-OS
+
+# Email configuration
+mta = sendmail
+action = %(action_mw)s
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+
+[sshd-ddos]
+enabled = true
+port = ssh
+filter = sshd-ddos
+logpath = /var/log/auth.log
+maxretry = 2
+
+# Rewind-OS specific jail
+[rewind-security]
+enabled = true
+filter = rewind-security
+logpath = /var/lib/rewind-os/security-logs/security.log
+bantime = 3600
+findtime = 600
+maxretry = 5
+
+# Web server protection (if applicable)
+[apache-auth]
+enabled = false
+port = http,https
+filter = apache-auth
+logpath = /var/log/apache*/*error.log
+maxretry = 6
+
+[nginx-http-auth]
+enabled = false
+port = http,https
+filter = nginx-http-auth
+logpath = /var/log/nginx/error.log
+maxretry = 6

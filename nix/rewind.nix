@@ -14,7 +14,7 @@ let
     pname = "rewind-os";
     version = "0.1.0";
     
-    src = ./.;
+    src = ../.;
     
     propagatedBuildInputs = with pkgs.python3Packages; [
       # Add any Python dependencies here
@@ -36,10 +36,12 @@ if __name__ == "__main__":
 EOF
       chmod +x $out/bin/rewind
       
-      # Install XFCE reload script
+      # Install scripts
       mkdir -p $out/share/rewind-os/scripts
-      cp ${./scripts/hook-xfce-reload.sh} $out/share/rewind-os/scripts/
+      cp ${../scripts/hook-xfce-reload.sh} $out/share/rewind-os/scripts/
+      cp ${../scripts/security-tools.sh} $out/share/rewind-os/scripts/
       chmod +x $out/share/rewind-os/scripts/hook-xfce-reload.sh
+      chmod +x $out/share/rewind-os/scripts/security-tools.sh
       
       # Install systemd integration scripts
       mkdir -p $out/share/rewind-os/systemd
@@ -282,6 +284,12 @@ in {
       hardening = {
         enable = mkEnableOption "System hardening configuration";
         
+        apparmor = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Enable AppArmor mandatory access control";
+        };
+        
         firewall = mkOption {
           type = types.bool;
           default = true;
@@ -305,6 +313,12 @@ in {
           default = true;
           description = "Enable network security hardening";
         };
+        
+        auditd = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Enable audit daemon with enhanced rules";
+        };
       };
       
       monitoring = {
@@ -326,6 +340,12 @@ in {
           type = types.bool;
           default = true;
           description = "Create automatic snapshots on security events";
+        };
+        
+        checklistVerification = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Enable automated security checklist verification";
         };
       };
     };
@@ -546,6 +566,95 @@ in {
         binwalk                # Binary analysis tool
     ]);
     
+    # Phase 3: Security, Audit, and Investigation Tools Configuration
+    
+    # Security audit tools packages
+    environment.systemPackages = mkIf cfg.security.enable (with pkgs;
+      lib.optionals cfg.security.auditTools.systemIntegrity [
+        aide                    # Advanced Intrusion Detection Environment
+        chkrootkit             # Rootkit detection
+        rkhunter               # Rootkit Hunter
+        lynis                  # Security auditing tool
+        clamav                 # Antivirus scanner
+        
+      ] ++ lib.optionals cfg.security.auditTools.logAnalysis [
+        logwatch               # Log analysis and reporting
+        fail2ban               # Intrusion prevention system
+        rsyslog                # Enhanced syslog
+        
+      ] ++ lib.optionals cfg.security.auditTools.forensics [
+        sleuthkit              # Digital forensics toolkit
+        autopsy                # Digital forensics platform
+        volatility3            # Memory forensics framework
+        binwalk                # Binary analysis tool
+      ] ++ lib.optionals cfg.security.hardening.apparmor [
+        apparmor-utils         # AppArmor utilities
+        apparmor-profiles      # AppArmor profiles
+    ]);
+    
+    # AppArmor configuration
+    security.apparmor = mkIf (cfg.security.enable && cfg.security.hardening.apparmor) {
+      enable = true;
+      killUnconfinedConfinables = true;
+      policies = {
+        "firefox" = lib.mkDefault ''
+          #include <tunables/global>
+          
+          /usr/bin/firefox {
+            #include <abstractions/base>
+            #include <abstractions/audio>
+            #include <abstractions/dbus-session-strict>
+            #include <abstractions/gnome>
+            #include <abstractions/nameservice>
+            #include <abstractions/openssl>
+            #include <abstractions/user-tmp>
+            
+            # Allow reading configuration
+            owner @{HOME}/.mozilla/** rw,
+            
+            # Allow network access
+            network inet stream,
+            network inet6 stream,
+            
+            # Allow reading system directories
+            /usr/share/firefox/** r,
+            /etc/firefox/** r,
+          }
+        '';
+      };
+    };
+    
+    # Auditd configuration
+    security.auditd = mkIf (cfg.security.enable && cfg.security.hardening.auditd) {
+      enable = true;
+      rules = [
+        # Monitor file access
+        "-w /etc/passwd -p wa -k identity"
+        "-w /etc/group -p wa -k identity"
+        "-w /etc/shadow -p wa -k identity"
+        "-w /etc/sudoers -p wa -k identity"
+        
+        # Monitor authentication
+        "-w /var/log/auth.log -p wa -k authentication"
+        "-w /var/log/secure -p wa -k authentication"
+        
+        # Monitor system calls
+        "-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change"
+        "-a always,exit -F arch=b32 -S adjtimex -S settimeofday -S stime -k time-change"
+        
+        # Monitor network configuration
+        "-a always,exit -F arch=b64 -S sethostname -S setdomainname -k system-locale"
+        "-a always,exit -F arch=b32 -S sethostname -S setdomainname -k system-locale"
+        
+        # Monitor privilege escalation
+        "-a always,exit -F arch=b64 -S setuid -S setgid -S setreuid -S setregid -k privilege-escalation"
+        "-a always,exit -F arch=b32 -S setuid -S setgid -S setreuid -S setregid -k privilege-escalation"
+        
+        # Rewind-OS specific monitoring
+        "-w ${cfg.configDir} -p wa -k rewind-changes"
+      ];
+    };
+    
     # Security hardening configuration
     boot.kernelParams = mkIf (cfg.security.enable && cfg.security.hardening.kernelHardening) [
       # Kernel hardening parameters
@@ -556,6 +665,8 @@ in {
       "debugfs=off"            # Disable debugfs
       "oops=panic"             # Panic on oops
       "module.sig_enforce=1"   # Enforce module signatures
+      "init_on_alloc=1"        # Initialize allocated memory
+      "init_on_free=1"         # Initialize freed memory
     ];
     
     # Enhanced firewall configuration
@@ -566,6 +677,17 @@ in {
       logRefusedConnections = true;
       logRefusedPackets = false;
       logRefusedUnicastsOnly = false;
+      extraCommands = ''
+        # Drop invalid packets
+        iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
+        
+        # Rate limit connections
+        iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --set
+        iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 10 -j DROP
+        
+        # Log suspicious activity
+        iptables -A INPUT -m limit --limit 5/min -j LOG --log-prefix "iptables-denied: " --log-level 7
+      '';
     };
     
     # System hardening via sysctl
@@ -585,6 +707,13 @@ in {
       "net.ipv4.icmp_echo_ignore_broadcasts" = 1;
       "net.ipv4.icmp_ignore_bogus_error_responses" = 1;
       "net.ipv4.tcp_syncookies" = 1;
+      "net.ipv4.tcp_timestamps" = 0;
+      
+      # IPv6 hardening
+      "net.ipv6.conf.all.accept_redirects" = 0;
+      "net.ipv6.conf.default.accept_redirects" = 0;
+      "net.ipv6.conf.all.accept_ra" = 0;
+      "net.ipv6.conf.default.accept_ra" = 0;
       
       # Memory protection
       "kernel.dmesg_restrict" = 1;
@@ -596,6 +725,13 @@ in {
       "fs.protected_hardlinks" = 1;
       "fs.protected_symlinks" = 1;
       "fs.suid_dumpable" = 0;
+      "fs.protected_fifos" = 2;
+      "fs.protected_regular" = 2;
+      
+      # Additional kernel hardening
+      "kernel.core_uses_pid" = 1;
+      "kernel.core_pattern" = "/var/crash/core-%e-%s-%u-%g-%p-%t";
+      "kernel.ctrl-alt-del" = 0;
     };
     
     # Security monitoring services
@@ -607,26 +743,77 @@ in {
         Group = "rewind-os";
         Environment = "REWIND_CONFIG_DIR=${cfg.configDir}";
         ExecStart = pkgs.writeShellScript "security-monitor" ''
-          # Security monitoring script
-          echo "Running security monitoring checks..."
+          # Enhanced security monitoring script
+          echo "Running enhanced security monitoring checks..."
+          
+          # Use the security tools script for comprehensive monitoring
+          ${pkgs.bash}/bin/bash ${rewindPackage}/share/rewind-os/scripts/security-tools.sh monitor
           
           # Check for security events and create snapshots if needed
           if [ "${toString cfg.security.monitoring.automaticSnapshots}" = "1" ]; then
             # Create security event snapshot
-            ${rewindPackage}/bin/rewind snapshot "Security check ($(date))"
+            ${rewindPackage}/bin/rewind snapshot "Security monitoring check ($(date))"
           fi
           
           # Log security status
           mkdir -p ${cfg.configDir}/security-logs
-          echo "$(date): Security monitoring completed" >> ${cfg.configDir}/security-logs/security.log
-          
-          # TODO: Implement actual security monitoring logic
-          # - Check system integrity
-          # - Analyze logs for suspicious activity
-          # - Monitor file system changes
-          # - Check for unauthorized access attempts
+          echo "$(date): Enhanced security monitoring completed" >> ${cfg.configDir}/security-logs/security.log
         '';
         WorkingDirectory = cfg.configDir;
+      };
+    };
+    
+    # Real-time security monitoring service
+    systemd.services.rewind-security-realtime = mkIf (cfg.security.enable && cfg.security.monitoring.realTimeAlerts) {
+      description = "Rewind-OS real-time security monitoring";
+      after = [ "network.target" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        Type = "simple";
+        User = "rewind-os";
+        Group = "rewind-os";
+        Environment = "REWIND_CONFIG_DIR=${cfg.configDir}";
+        ExecStart = pkgs.writeShellScript "realtime-security-monitor" ''
+          # Real-time security monitoring loop
+          while true; do
+            # Run real-time monitoring
+            ${pkgs.bash}/bin/bash ${rewindPackage}/share/rewind-os/scripts/security-tools.sh realtime
+            
+            # Sleep between monitoring cycles
+            sleep 300  # 5 minutes
+          done
+        '';
+        Restart = "always";
+        RestartSec = 30;
+        WorkingDirectory = cfg.configDir;
+      };
+    };
+    
+    # Security checklist verification service
+    systemd.services.rewind-security-checklist = mkIf (cfg.security.enable && cfg.security.monitoring.checklistVerification) {
+      description = "Rewind-OS security checklist verification";
+      serviceConfig = {
+        Type = "oneshot";
+        User = "rewind-os";
+        Group = "rewind-os";
+        Environment = "REWIND_CONFIG_DIR=${cfg.configDir}";
+        ExecStart = pkgs.writeShellScript "security-checklist" ''
+          # Run security checklist verification
+          echo "Running security checklist verification..."
+          ${pkgs.bash}/bin/bash ${rewindPackage}/share/rewind-os/scripts/security-tools.sh checklist
+        '';
+        WorkingDirectory = cfg.configDir;
+      };
+    };
+    
+    # Security checklist timer (daily)
+    systemd.timers.rewind-security-checklist = mkIf (cfg.security.enable && cfg.security.monitoring.checklistVerification) {
+      description = "Timer for security checklist verification";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnCalendar = "daily";
+        Persistent = true;
+        RandomizedDelaySec = "1h";
       };
     };
     
@@ -637,6 +824,7 @@ in {
       timerConfig = {
         OnCalendar = "hourly";
         Persistent = true;
+        RandomizedDelaySec = "10m";
       };
     };
     
@@ -695,16 +883,62 @@ in {
       maxretry = 3;
       bantime = "1h";
       
-      # Create custom jail for Rewind-OS security events
-      jails.rewind-security = ''
-        enabled = true
-        filter = rewind-security
-        logpath = ${cfg.configDir}/security-logs/security.log
-        bantime = 3600
-        findtime = 600
-        maxretry = 5
-      '';
+      # Install custom configuration
+      jails = {
+        # SSH protection
+        DEFAULT = ''
+          bantime = 3600
+          findtime = 600
+          maxretry = 5
+          destemail = root@localhost
+          sendername = Fail2Ban-Rewind-OS
+          mta = sendmail
+          action = %(action_mw)s
+        '';
+        
+        sshd = ''
+          enabled = true
+          port = ssh
+          filter = sshd
+          logpath = /var/log/auth.log
+          maxretry = 3
+        '';
+        
+        # Rewind-OS security events
+        rewind-security = ''
+          enabled = true
+          filter = rewind-security
+          logpath = ${cfg.configDir}/security-logs/security.log
+          bantime = 3600
+          findtime = 600
+          maxretry = 5
+        '';
+      };
     };
+    
+    # Install security tool configurations
+    environment.etc = mkMerge [
+      (mkIf (cfg.security.enable && cfg.security.auditTools.systemIntegrity) {
+        "rkhunter.conf" = {
+          source = ../configs/rkhunter.conf;
+          mode = "0644";
+        };
+        "aide.conf" = {
+          source = ../configs/aide.conf;
+          mode = "0644";
+        };
+      })
+      (mkIf (cfg.security.enable && cfg.security.auditTools.logAnalysis) {
+        "fail2ban/filter.d/rewind-security.conf" = {
+          source = ../configs/fail2ban-filter-rewind-security.conf;
+          mode = "0644";
+        };
+        "logwatch/conf/logwatch.conf" = {
+          source = ../configs/logwatch.conf;
+          mode = "0644";
+        };
+      })
+    ];
     
     # Rsyslog configuration for enhanced logging
     services.rsyslog = mkIf (cfg.security.enable && cfg.security.auditTools.logAnalysis) {
