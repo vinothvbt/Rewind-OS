@@ -1,0 +1,10 @@
+{
+    "test_name": "test_e2e_timeline",
+    "test_file": "/home/runner/work/Rewind-OS/Rewind-OS/tests/test_e2e_timeline.py",
+    "success": true,
+    "exit_code": 0,
+    "duration": 0,
+    "timestamp": "20250807_081220",
+    "output_file": "/home/runner/work/Rewind-OS/Rewind-OS/test_results/test_e2e_timeline_20250807_081220.log",
+    "config_dir": "/home/runner/work/Rewind-OS/Rewind-OS/test_results/test_e2e_timeline_config_20250807_081220"
+}
