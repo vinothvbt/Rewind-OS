@@ -50,6 +50,7 @@ Thumbs.db
 .rewind/
 *.log
 .rewind-backup/
+test_results/
 
 # Nix
 result

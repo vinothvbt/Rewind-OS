@@ -604,6 +604,9 @@ real_time_monitoring() {
 security_checklist() {
     log "Running security checklist verification..."
     
+    # Ensure report directory exists
+    mkdir -p "${SECURITY_REPORT_DIR}"
+    
     local checklist_file="${SECURITY_REPORT_DIR}/security-checklist-$(date +%Y%m%d-%H%M%S).log"
     local passed=0
     local failed=0
