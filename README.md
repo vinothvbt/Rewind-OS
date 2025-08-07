@@ -2,7 +2,7 @@
 
 Rewind OS is a next-generation Linux-based operating system designed for complete time manipulation of your system. Inspired by the concepts of version control (like Git) and powered by the robustness of NixOS, Rewind OS enables you to travel back and forth through time — capturing, auditing, and restoring system states as easily as browsing a video timeline.
 
-**Current Status**: Phase 1 Implementation - Foundational CLI and NixOS integration
+**Current Status**: Phase 2 Implementation - Deep NixOS integration and improved user experience
 
 ---
 
@@ -12,6 +12,8 @@ Rewind OS is a next-generation Linux-based operating system designed for complet
 
 * Instantly rewind to any system state with timeline precision.
 * Move forward in time if a new branch is restored from an old state.
+* **NEW**: Safe rollback with automatic safety snapshots and confirmation prompts.
+* **NEW**: Stash/unstash functionality for temporary state management.
 * Inspired by Marvel's Time Stone — but in real Linux.
 
 ### 🧠 Intelligent Snapshot System
@@ -19,24 +21,33 @@ Rewind OS is a next-generation Linux-based operating system designed for complet
 * Timeline-based snapshot management with git-like branching.
 * Snapshots taken automatically based on user actions, updates, or on demand.
 * Each snapshot is tracked and linked to a timeline branch.
+* **NEW**: Automatic retention policies with configurable cleanup.
+* **NEW**: Enhanced snapshot metadata and cross-reference tracking.
 
 ### 🧬 Git-Like Branching Engine
 
 * Every change creates a new timeline branch.
 * Switch between system states like switching Git branches.
 * Merge branches or discard experiments without fear.
+* **NEW**: Stash management for work-in-progress states.
+* **NEW**: Enhanced branch operations with detailed tracking.
 
 ### 📦 NixOS-Powered Configuration Engine
 
 * Declarative, reproducible system config using Nix.
 * Integrated with NixOS rebuild process.
 * Automatic snapshots before system changes.
+* **NEW**: Live configuration management without reboot.
+* **NEW**: Advanced systemd service integration for auto-save and rollback.
+* **NEW**: Configuration change monitoring and automatic reload.
 
 ### 🔐 Desktop Integration
 
-* XFCE desktop environment integration.
-* Automatic desktop reload after state changes.
-* Configuration backup and restore.
+* XFCE desktop environment integration with enhanced reload mechanisms.
+* Automatic desktop reload after state changes with error recovery.
+* Configuration backup and restore with validation.
+* **NEW**: Smart reload strategies (full, light, recovery modes).
+* **NEW**: Real-time configuration validation and rollback on failure.
 
 ---
 
@@ -136,9 +147,53 @@ python3 -m rewind.cli branch experimental "Testing new configuration"
 python3 -m rewind.cli switch experimental
 ```
 
-**Restore to a snapshot**:
+**Restore to a snapshot (with confirmation)**:
 ```bash
 python3 -m rewind.cli restore snap_1234567890
+```
+
+**Force restore without confirmation**:
+```bash
+python3 -m rewind.cli restore snap_1234567890 --force
+```
+
+### Stash Management (Phase 2)
+
+**Create a stash**:
+```bash
+python3 -m rewind.cli stash "Work in progress"
+```
+
+**List all stashes**:
+```bash
+python3 -m rewind.cli list --stashes
+```
+
+**Apply most recent stash**:
+```bash
+python3 -m rewind.cli stash --apply
+```
+
+**Apply and remove most recent stash**:
+```bash
+python3 -m rewind.cli stash --pop
+```
+
+**Drop most recent stash**:
+```bash
+python3 -m rewind.cli stash --drop
+```
+
+### Information and Status
+
+**Show timeline status**:
+```bash
+python3 -m rewind.cli info
+```
+
+**Show snapshot details**:
+```bash
+python3 -m rewind.cli info snap_1234567890
 ```
 
 ### Advanced Operations
@@ -153,15 +208,25 @@ python3 -m rewind.cli branch testing "New feature testing" --switch
 python3 -m rewind.cli list --snapshots --branch main
 ```
 
+**Unsafe restore (skip safety snapshot)**:
+```bash
+python3 -m rewind.cli restore snap_1234567890 --unsafe --force
+```
+
 **View help for any command**:
 ```bash
 python3 -m rewind.cli --help
 python3 -m rewind.cli snapshot --help
 ```
 
-### XFCE Integration
+### XFCE Integration (Phase 2 Enhanced)
 
-**Manual desktop reload**:
+**Smart desktop reload with error recovery**:
+```bash
+./scripts/hook-xfce-reload.sh smart
+```
+
+**Full desktop reload**:
 ```bash
 ./scripts/hook-xfce-reload.sh full
 ```
@@ -171,36 +236,82 @@ python3 -m rewind.cli snapshot --help
 ./scripts/hook-xfce-reload.sh light
 ```
 
+**Check component status**:
+```bash
+./scripts/hook-xfce-reload.sh status
+```
+
 **Backup XFCE configuration**:
 ```bash
 ./scripts/hook-xfce-reload.sh backup
+```
+
+**Recovery mode (restore from backup)**:
+```bash
+./scripts/hook-xfce-reload.sh recovery
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-### NixOS Module Options
+### NixOS Module Options (Phase 2)
 
 ```nix
 services.rewind-os = {
   enable = true;
   configDir = "/var/lib/rewind-os";  # Storage location
   
+  # Enhanced automatic snapshot system
   autoSnapshot = {
     enable = true;
     interval = "hourly";             # Automatic snapshot frequency
     beforeRebuild = true;            # Snapshot before nixos-rebuild
+    onUserLogin = true;              # Snapshot on user login
+    
+    # Automatic cleanup policies
+    retentionPolicy = {
+      enable = true;
+      maxSnapshots = 50;             # Keep max 50 snapshots per branch
+      maxAge = "30d";                # Remove snapshots older than 30 days
+    };
   };
   
+  # Live configuration management (NEW in Phase 2)
+  configManagement = {
+    enable = true;                   # Enable live config changes
+    snapshotBeforeChange = true;     # Safety snapshot before changes
+    reloadUserServices = true;       # Reload user systemd services
+    customReloadCommand = "";        # Custom reload commands
+  };
+  
+  # Safe rollback functionality (NEW in Phase 2)
+  rollback = {
+    enable = true;
+    safetyChecks = true;             # Enable safety checks
+    maxRollbackDepth = 10;           # Maximum rollback depth
+  };
+  
+  # Enhanced XFCE integration
   xfce = {
     enable = true;                   # XFCE integration
     reloadOnRestore = true;          # Auto-reload after restore
+    reloadOnChange = true;           # Auto-reload after config changes
+    backupConfig = true;             # Backup XFCE config before changes
   };
   
+  # Advanced storage configuration
   storage = {
     backend = "simple";              # Storage backend type
     retentionDays = 30;              # Snapshot retention period
+    compressionLevel = 6;            # Compression level (0-9)
+  };
+  
+  # Web interface (NEW in Phase 2)
+  webInterface = {
+    enable = false;                  # Enable web-based timeline GUI
+    port = 8080;                     # Web interface port
+    bindAddress = "127.0.0.1";       # Bind address
   };
 };
 ```
@@ -208,6 +319,8 @@ services.rewind-os = {
 ### Environment Variables
 
 - `REWIND_CONFIG_DIR`: Override default config directory (`~/.rewind`)
+- `REWIND_FORCE`: Skip confirmations (`1`, `true`, `yes`)
+- `REWIND_DEBUG`: Enable debug output (`1`, `true`, `yes`)
 
 ---
 
@@ -220,10 +333,19 @@ services.rewind-os = {
 - [x] XFCE desktop hooks
 - [x] Basic documentation
 
-### Coming Soon (Phase 2):
+### Phase 2: ✅ Complete
+- [x] Enhanced CLI with stash/unstash functionality
+- [x] Safe rollback with confirmation prompts and safety snapshots
+- [x] Live configuration management without reboot
+- [x] Advanced NixOS integration with systemd services
+- [x] Enhanced XFCE integration with error recovery
+- [x] Improved documentation and troubleshooting guides
+- [x] End-to-end testing capabilities
+
+### Coming Soon (Phase 3):
 - [ ] Actual filesystem snapshot backends (Btrfs/ZFS)
+- [ ] Web-based timeline GUI
 - [ ] Enhanced timeline management
-- [ ] Automated testing suite
 - [ ] Performance optimizations
 
 See [PHASES.md](PHASES.md) for complete development roadmap.

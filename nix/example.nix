@@ -11,30 +11,66 @@
     ./rewind.nix
   ];
 
-  # Enable Rewind-OS with recommended settings
+  # Enable Rewind-OS with comprehensive Phase 2 features
   services.rewind-os = {
     enable = true;
     
     # Configuration directory (default: /var/lib/rewind-os)
     configDir = "/var/lib/rewind-os";
     
-    # Automatic snapshot configuration
+    # Enhanced automatic snapshot configuration
     autoSnapshot = {
       enable = true;
       interval = "hourly";           # Create snapshots every hour
       beforeRebuild = true;          # Snapshot before nixos-rebuild
+      onUserLogin = true;            # Snapshot on user login
+      
+      # Retention policy for automatic cleanup
+      retentionPolicy = {
+        enable = true;
+        maxSnapshots = 50;           # Keep max 50 snapshots per branch
+        maxAge = "30d";              # Remove snapshots older than 30 days
+      };
     };
     
-    # XFCE desktop integration
+    # Live configuration management (Phase 2 feature)
+    configManagement = {
+      enable = true;                 # Enable live config changes
+      snapshotBeforeChange = true;   # Safety snapshot before changes
+      reloadUserServices = true;     # Reload user systemd services
+      customReloadCommand = ''
+        # Custom reload commands go here
+        echo "Custom configuration reload completed"
+      '';
+    };
+    
+    # Safe rollback functionality (Phase 2 feature)
+    rollback = {
+      enable = true;
+      safetyChecks = true;           # Enable safety checks
+      maxRollbackDepth = 10;         # Maximum rollback depth
+    };
+    
+    # Enhanced XFCE desktop integration
     xfce = {
       enable = true;                 # Enable if using XFCE
       reloadOnRestore = true;        # Auto-reload XFCE after restore
+      reloadOnChange = true;         # Auto-reload XFCE after config changes
+      backupConfig = true;           # Backup XFCE config before changes
     };
     
-    # Storage configuration
+    # Advanced storage configuration
     storage = {
       backend = "simple";            # Options: btrfs, zfs, simple
       retentionDays = 30;            # Keep snapshots for 30 days
+      compressionLevel = 6;          # Compression level (0-9)
+    };
+    
+    # Optional web interface (Phase 2 feature)
+    webInterface = {
+      enable = false;                # Enable web-based timeline GUI
+      port = 8080;                   # Web interface port
+      bindAddress = "127.0.0.1";     # Bind to localhost only
     };
   };
 
@@ -134,14 +170,14 @@
   # Example of file system configuration for snapshot backends
   # Uncomment the relevant section based on your choice:
   
-  # For Btrfs backend:
+  # For Btrfs backend (recommended for Phase 2):
   # fileSystems."/" = {
   #   device = "/dev/disk/by-label/nixos";
   #   fsType = "btrfs";
   #   options = [ "subvol=root" "compress=zstd" ];
   # };
   
-  # For ZFS backend:
+  # For ZFS backend (advanced users):
   # boot.supportedFilesystems = [ "zfs" ];
   # networking.hostId = "12345678";  # Required for ZFS
   
@@ -158,6 +194,55 @@
       ExecStartPre = "/run/current-system/sw/bin/rewind snapshot 'Before app deployment'";
       ExecStart = "/usr/bin/echo 'Deploy application here'";
       ExecStartPost = "/run/current-system/sw/bin/rewind snapshot 'After app deployment'";
+    };
+  };
+  
+  # Phase 2: Advanced configuration examples
+  
+  # Custom systemd service that integrates with Rewind-OS
+  systemd.services.my-custom-service = {
+    description = "Custom service with Rewind-OS integration";
+    before = [ "rewind-auto-snapshot.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStartPre = "/run/current-system/sw/bin/rewind stash 'Before custom service'";
+      ExecStart = "/usr/bin/echo 'Custom service logic here'";
+      ExecStartPost = "/run/current-system/sw/bin/rewind snapshot 'After custom service'";
+    };
+  };
+  
+  # Example of integrating with application updates
+  systemd.services.app-update-with-timeline = {
+    description = "Application update with timeline integration";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStartPre = [
+        "/run/current-system/sw/bin/rewind snapshot 'Pre-app-update checkpoint'"
+        "/run/current-system/sw/bin/rewind stash 'Stashing before update'"
+      ];
+      ExecStart = "/usr/bin/echo 'Update applications here'";
+      ExecStartPost = [
+        "/run/current-system/sw/bin/rewind snapshot 'Post-app-update checkpoint'"
+        "/usr/bin/systemctl --user restart rewind-config-reload.service"
+      ];
+    };
+  };
+  
+  # Environment configuration for better Rewind-OS integration
+  environment.etc."rewind-os/config.json" = {
+    text = builtins.toJSON {
+      version = "0.2.0";
+      features = {
+        stash = true;
+        safeRollback = true;
+        liveConfigReload = true;
+        webInterface = config.services.rewind-os.webInterface.enable;
+      };
+      integrations = {
+        xfce = config.services.rewind-os.xfce.enable;
+        systemd = true;
+        nixos = true;
+      };
     };
   };
 }
