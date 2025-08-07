@@ -526,9 +526,8 @@ in {
     # Phase 3: Security, Audit, and Investigation Tools Configuration
     
     # Security audit tools packages
-    environment.systemPackages = mkIf cfg.security.enable (with pkgs; [
-      # System integrity and monitoring tools
-      ] ++ lib.optionals cfg.security.auditTools.systemIntegrity [
+    environment.systemPackages = mkIf cfg.security.enable (with pkgs;
+      lib.optionals cfg.security.auditTools.systemIntegrity [
         aide                    # Advanced Intrusion Detection Environment
         chkrootkit             # Rootkit detection
         rkhunter               # Rootkit Hunter
