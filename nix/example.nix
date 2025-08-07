@@ -72,6 +72,36 @@
       port = 8080;                   # Web interface port
       bindAddress = "127.0.0.1";     # Bind to localhost only
     };
+    
+    # Phase 3: Security, Audit, and Investigation Tools
+    security = {
+      enable = true;                 # Enable security features
+      
+      # Security audit tools configuration
+      auditTools = {
+        enable = true;               # Enable security audit tools
+        systemIntegrity = true;      # Enable system integrity monitoring
+        logAnalysis = true;          # Enable log analysis tools
+        forensics = false;           # Enable forensics tools (advanced users)
+      };
+      
+      # System hardening configuration
+      hardening = {
+        enable = true;               # Enable system hardening
+        firewall = true;             # Enhanced firewall configuration
+        kernelHardening = true;      # Kernel security hardening
+        userspace = true;            # Userspace security hardening
+        networkSecurity = true;      # Network security hardening
+      };
+      
+      # Security monitoring and alerting
+      monitoring = {
+        enable = true;               # Enable security monitoring
+        realTimeAlerts = false;      # Real-time security alerts (requires setup)
+        logRetention = 90;           # Keep security logs for 90 days
+        automaticSnapshots = true;   # Create snapshots on security events
+      };
+    };
   };
 
   # Example system configuration that works well with Rewind-OS

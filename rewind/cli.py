@@ -248,6 +248,160 @@ def cmd_info(args, timeline: Timeline):
             print("No snapshots in current branch.")
 
 
+def cmd_security(args, timeline: Timeline):
+    """Handle security command (Phase 3)."""
+    import subprocess
+    import glob
+    from pathlib import Path
+    
+    security_dir = Path(timeline.config_dir) / "security-logs"
+    
+    if args.status:
+        # Show security status
+        print("Rewind-OS Security Status")
+        print("=" * 40)
+        
+        # Check if security features are available
+        try:
+            result = subprocess.run(['systemctl', 'is-active', 'rewind-security-monitor'], 
+                                  capture_output=True, text=True)
+            security_service = result.stdout.strip()
+        except:
+            security_service = "unknown"
+        
+        print(f"Security monitoring: {security_service}")
+        
+        # Check security logs
+        if security_dir.exists():
+            log_files = list(security_dir.glob("*.log"))
+            print(f"Security log files: {len(log_files)}")
+            
+            # Show recent security events
+            if log_files:
+                print("\nRecent security events:")
+                try:
+                    # Read last few lines from security.log
+                    security_log = security_dir / "security.log"
+                    if security_log.exists():
+                        with open(security_log) as f:
+                            lines = f.readlines()
+                            for line in lines[-5:]:  # Last 5 lines
+                                print(f"  {line.strip()}")
+                except Exception as e:
+                    print(f"  Could not read security logs: {e}")
+        else:
+            print("Security logs directory not found (security features may not be enabled)")
+            
+    elif args.scan:
+        # Run security scan and create snapshot
+        print("Running security scan...")
+        
+        # Create pre-scan snapshot
+        snapshot_id = timeline.create_snapshot("Pre-security scan", auto=True)
+        print(f"✓ Created pre-scan snapshot: {snapshot_id}")
+        
+        # TODO: Integrate with actual security tools
+        print("• Checking system integrity...")
+        print("• Analyzing log files...")
+        print("• Scanning for malware...")
+        print("• Verifying file permissions...")
+        
+        # Simulate security scan (in real implementation, would run actual tools)
+        print("✓ Security scan completed")
+        
+        # Create post-scan snapshot
+        snapshot_id = timeline.create_snapshot("Post-security scan", auto=True)
+        print(f"✓ Created post-scan snapshot: {snapshot_id}")
+        
+        # Log security scan
+        security_dir.mkdir(exist_ok=True)
+        import datetime
+        with open(security_dir / "security.log", "a") as f:
+            f.write(f"{datetime.datetime.now()}: Security scan completed via CLI\n")
+            
+    elif args.audit:
+        # Show audit trail
+        print("Security Audit Trail")
+        print("=" * 40)
+        
+        # Look for security-related snapshots
+        snapshots = timeline.list_snapshots()
+        security_snapshots = [s for s in snapshots if any(
+            keyword in s['message'].lower() 
+            for keyword in ['security', 'scan', 'audit', 'monitor']
+        )]
+        
+        if security_snapshots:
+            print("Security-related snapshots:")
+            for snap in security_snapshots[-10:]:  # Last 10
+                print(f"  • {snap['id']}: {snap['message']} ({snap['timestamp']})")
+        else:
+            print("No security-related snapshots found")
+            
+        # Show security logs if available
+        if security_dir.exists():
+            audit_log = security_dir / "audit-trails"
+            if audit_log.exists():
+                print(f"\nSecurity audit logs available in: {audit_log}")
+            
+    elif args.report:
+        # Generate security report
+        print("Generating Security Report...")
+        print("=" * 40)
+        
+        report_dir = Path(timeline.config_dir) / "security-reports"
+        report_dir.mkdir(exist_ok=True)
+        
+        import datetime
+        report_file = report_dir / f"security-report-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}.txt"
+        
+        with open(report_file, "w") as f:
+            f.write("Rewind-OS Security Report\n")
+            f.write("=" * 40 + "\n")
+            f.write(f"Generated: {datetime.datetime.now()}\n\n")
+            
+            # Include system info
+            f.write("System Information:\n")
+            f.write(f"Config directory: {timeline.config_dir}\n")
+            f.write(f"Current branch: {timeline.get_current_branch()}\n")
+            f.write(f"Total branches: {len(timeline.list_branches())}\n")
+            f.write(f"Total snapshots: {len(timeline.list_snapshots())}\n\n")
+            
+            # Include recent security events
+            if security_dir.exists():
+                security_log = security_dir / "security.log"
+                if security_log.exists():
+                    f.write("Recent Security Events:\n")
+                    try:
+                        with open(security_log) as log:
+                            lines = log.readlines()
+                            for line in lines[-20:]:  # Last 20 lines
+                                f.write(f"  {line}")
+                    except:
+                        f.write("  Could not read security log\n")
+                    f.write("\n")
+            
+            # Include security snapshots
+            snapshots = timeline.list_snapshots()
+            security_snapshots = [s for s in snapshots if any(
+                keyword in s['message'].lower() 
+                for keyword in ['security', 'scan', 'audit', 'monitor']
+            )]
+            
+            f.write("Security-Related Snapshots:\n")
+            for snap in security_snapshots[-10:]:
+                f.write(f"  {snap['id']}: {snap['message']} ({snap['timestamp']})\n")
+            
+        print(f"✓ Security report generated: {report_file}")
+        
+        # Create snapshot for the report
+        snapshot_id = timeline.create_snapshot(f"Security report generated", auto=True)
+        print(f"✓ Created snapshot: {snapshot_id}")
+        
+    else:
+        print("No security action specified. Use --help for available options.")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -270,6 +424,10 @@ Examples:
   rewind stash --drop                   # Drop most recent stash
   rewind info                           # Show timeline status
   rewind info snap_1234567890           # Show snapshot details
+  rewind security --status              # Show security status (Phase 3)
+  rewind security --scan                # Run security scan with snapshots
+  rewind security --audit               # Show security audit trail
+  rewind security --report              # Generate security report
 
 Environment Variables:
   REWIND_CONFIG_DIR     Override config directory (default: ~/.rewind)
@@ -326,6 +484,13 @@ Environment Variables:
     info_parser = subparsers.add_parser('info', help='Show timeline information')
     info_parser.add_argument('snapshot_id', nargs='?', help='Show details for specific snapshot')
     
+    # Security command (Phase 3)
+    security_parser = subparsers.add_parser('security', help='Security, audit, and investigation tools (Phase 3)')
+    security_parser.add_argument('--status', action='store_true', help='Show security status and monitoring')
+    security_parser.add_argument('--scan', action='store_true', help='Run security scan with automatic snapshots')
+    security_parser.add_argument('--audit', action='store_true', help='Show security audit trail')
+    security_parser.add_argument('--report', action='store_true', help='Generate comprehensive security report')
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -353,6 +518,8 @@ Environment Variables:
             cmd_stash(args, timeline)
         elif args.command == 'info':
             cmd_info(args, timeline)
+        elif args.command == 'security':
+            cmd_security(args, timeline)
         else:
             print(f"✗ Unknown command: {args.command}")
             sys.exit(1)

@@ -52,8 +52,7 @@ EXAMPLES:
 TEST SUITES:
     - Timeline Operations (test_e2e_timeline.py)
     - Configuration Reload (test_config_reload.py)
-    - XFCE Integration (part of config reload)
-    - CLI Interface (part of timeline tests)
+    - Phase 3 Security (test_phase3_security.py)
 
 ENVIRONMENT VARIABLES:
     REWIND_TEST_TIMEOUT    Test timeout in seconds (default: 300)
@@ -266,6 +265,7 @@ run_tests() {
     local test_files=(
         "$SCRIPT_DIR/test_e2e_timeline.py"
         "$SCRIPT_DIR/test_config_reload.py"
+        "$SCRIPT_DIR/test_phase3_security.py"
     )
     
     # Filter tests if requested

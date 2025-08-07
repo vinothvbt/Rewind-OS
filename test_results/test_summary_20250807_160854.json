@@ -1,0 +1,14 @@
+{
+    "timestamp": "20250807_160854",
+    "total_tests": 2,
+    "passed_tests": 2,
+    "failed_tests": 0,
+    "pass_rate": 100,
+    "failed_test_names": [""],
+    "test_output_dir": "/home/runner/work/Rewind-OS/Rewind-OS/test_results",
+    "environment": {
+        "python_version": "Python 3.12.3",
+        "system": "Linux pkrvmjbmru5nbw0 6.11.0-1018-azure #18~24.04.1-Ubuntu SMP Sat Jun 28 04:46:03 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux",
+        "project_dir": "/home/runner/work/Rewind-OS/Rewind-OS"
+    }
+}
