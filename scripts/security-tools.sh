@@ -219,15 +219,8 @@ monitor() {
     network_check
     
     # Create Rewind-OS snapshot if CLI is available
-    if command -v rewind >/dev/null 2>&1; then
-        log "Creating security monitoring snapshot..."
-        rewind snapshot "Security monitoring cycle ($(date))" || warning "Failed to create snapshot"
-    elif [ -f "../rewind/cli.py" ]; then
-        log "Creating security monitoring snapshot..."
-        python3 -m rewind.cli snapshot "Security monitoring cycle ($(date))" || warning "Failed to create snapshot"
-    else
-        warning "Rewind CLI not available for automatic snapshots"
-    fi
+    log "Creating security monitoring snapshot..."
+    run_rewind_command snapshot "Security monitoring cycle ($(date))"
     
     echo "$(date): Security monitoring cycle completed" >> "${SECURITY_LOG_DIR}/monitoring.log"
     success "Security monitoring cycle completed"
