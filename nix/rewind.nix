@@ -14,6 +14,8 @@ let
     pname = "rewind-os";
     version = "0.1.0";
     
+    # Use ../. to refer to the project root directory relative to this module.
+    # This assumes the module is always located in nix/ and the project root is one level up.
     src = ../.;
     
     propagatedBuildInputs = with pkgs.python3Packages; [
