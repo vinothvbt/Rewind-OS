@@ -80,18 +80,20 @@
       # Security audit tools configuration
       auditTools = {
         enable = true;               # Enable security audit tools
-        systemIntegrity = true;      # Enable system integrity monitoring
-        logAnalysis = true;          # Enable log analysis tools
-        forensics = false;           # Enable forensics tools (advanced users)
+        systemIntegrity = true;      # Enable system integrity monitoring (rkhunter, aide, etc.)
+        logAnalysis = true;          # Enable log analysis tools (fail2ban, logwatch)
+        forensics = false;           # Enable forensics tools (sleuthkit, volatility - advanced users)
       };
       
       # System hardening configuration
       hardening = {
         enable = true;               # Enable system hardening
-        firewall = true;             # Enhanced firewall configuration
-        kernelHardening = true;      # Kernel security hardening
+        apparmor = true;             # Enable AppArmor mandatory access control
+        firewall = true;             # Enhanced firewall configuration with iptables rules
+        kernelHardening = true;      # Kernel security hardening parameters
         userspace = true;            # Userspace security hardening
-        networkSecurity = true;      # Network security hardening
+        networkSecurity = true;      # Network security hardening (TCP syncookies, etc.)
+        auditd = true;               # Enable audit daemon with enhanced rules
       };
       
       # Security monitoring and alerting
@@ -100,6 +102,7 @@
         realTimeAlerts = false;      # Real-time security alerts (requires setup)
         logRetention = 90;           # Keep security logs for 90 days
         automaticSnapshots = true;   # Create snapshots on security events
+        checklistVerification = true; # Enable automated security checklist verification
       };
     };
   };
